@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const signIn = async (username: string, password: string) => {
+ const signIn = async (username: string, password: string) => {
     try {
       // Query the staff_accounts table
       const { data: staff, error } = await supabase
