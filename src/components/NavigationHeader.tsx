@@ -24,7 +24,7 @@ export const NavigationHeader = () => {
         {currentUser && (
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              {currentUser}
+              {currentUser.full_name}
             </span>
             <Button variant="outline" onClick={handleSignOut}>
               Sign Out

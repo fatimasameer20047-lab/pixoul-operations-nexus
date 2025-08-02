@@ -129,8 +129,8 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
       }
 
       const messageData = {
-        sender_id: crypto.randomUUID(),
-        sender_name: currentUser,
+        sender_id: currentUser.id,
+        sender_name: currentUser.full_name,
         message: data.message || (fileUpload ? `Shared a file: ${fileUpload.name}` : ''),
         file_url: fileUrl,
         file_type: fileType,

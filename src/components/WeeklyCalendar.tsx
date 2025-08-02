@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Calendar, Clock } from 'lucide-react';
+import { Plus, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Shift {
   id: string;
@@ -26,14 +26,20 @@ interface ShiftForm {
 
 export const WeeklyCalendar = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number>(getCurrentDayOfWeek());
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
-  const [showCurrentDay, setShowCurrentDay] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
   const { currentUser } = useAuth();
   const { register, handleSubmit, reset } = useForm<ShiftForm>();
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  function getCurrentDayOfWeek(): number {
+    const today = new Date();
+    const day = today.getDay();
+    return day === 0 ? 7 : day; // Convert Sunday (0) to 7
+  }
 
   function getMonday(date: Date): Date {
     const day = date.getDay();
@@ -45,11 +51,18 @@ export const WeeklyCalendar = () => {
     return date.toISOString().split('T')[0];
   }
 
-  function getCurrentDayOfWeek(): number {
-    const today = new Date();
-    const day = today.getDay();
-    return day === 0 ? 7 : day; // Convert Sunday (0) to 7
-  }
+  // Auto-update to current day daily
+  useEffect(() => {
+    const updateCurrentDay = () => {
+      setSelectedDay(getCurrentDayOfWeek());
+    };
+    
+    // Update immediately and then every hour to catch day changes
+    updateCurrentDay();
+    const interval = setInterval(updateCurrentDay, 60 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     fetchShifts();
@@ -100,7 +113,7 @@ export const WeeklyCalendar = () => {
   };
 
   const onSubmit = async (data: ShiftForm) => {
-    if (!currentUser || selectedDay === null) return;
+    if (!currentUser) return;
 
     try {
       const weekStartString = formatDate(currentWeekStart);
@@ -109,8 +122,9 @@ export const WeeklyCalendar = () => {
       const { error } = await supabase
         .from('weekly_shifts')
         .upsert({
-          user_id: crypto.randomUUID(),
-          user_name: currentUser,
+          user_id: currentUser.id,
+          user_name: currentUser.full_name,
+          staff_account_id: currentUser.id,
           day_of_week: selectedDay,
           start_time: data.start_time,
           end_time: data.end_time,
@@ -127,7 +141,7 @@ export const WeeklyCalendar = () => {
       });
 
       reset();
-      setSelectedDay(null);
+      setShowAddForm(false);
       fetchShifts();
     } catch (error: any) {
       toast({
@@ -142,11 +156,6 @@ export const WeeklyCalendar = () => {
     return shifts.filter(shift => shift.day_of_week === dayOfWeek);
   };
 
-  const getCurrentDayShifts = () => {
-    const currentDay = getCurrentDayOfWeek();
-    return getShiftsForDay(currentDay);
-  };
-
   const formatTime = (time: string) => {
     return new Date(`2000-01-01T${time}`).toLocaleTimeString([], { 
       hour: '2-digit', 
@@ -154,20 +163,17 @@ export const WeeklyCalendar = () => {
     });
   };
 
-  const goToPreviousWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() - 7);
-    setCurrentWeekStart(newDate);
+  const goToPreviousDay = () => {
+    setSelectedDay(prev => prev === 1 ? 7 : prev - 1);
   };
 
-  const goToNextWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + 7);
-    setCurrentWeekStart(newDate);
+  const goToNextDay = () => {
+    setSelectedDay(prev => prev === 7 ? 1 : prev + 1);
   };
 
   const goToCurrentWeek = () => {
     setCurrentWeekStart(getMonday(new Date()));
+    setSelectedDay(getCurrentDayOfWeek());
   };
 
   const getDateForDay = (dayOfWeek: number) => {
@@ -176,79 +182,56 @@ export const WeeklyCalendar = () => {
     return date;
   };
 
-  if (showCurrentDay) {
-    const currentDay = getCurrentDayOfWeek();
-    const currentDayShifts = getCurrentDayShifts();
-    
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Calendar className="w-6 h-6" />
-            Today's Schedule - {days[currentDay - 1]}
-          </h2>
-          <Button variant="outline" onClick={() => setShowCurrentDay(false)}>
-            View Full Week
-          </Button>
-        </div>
-
-        <Card className="p-6">
-          {currentDayShifts.length === 0 ? (
-            <div className="text-center py-8">
-              <Clock className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No shifts scheduled for today</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {currentDayShifts.map((shift) => (
-                <div key={shift.id} className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                  <div>
-                    <p className="font-semibold">{shift.user_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
-                    </p>
-                  </div>
-                  <Badge variant="outline">
-                    {Math.round((new Date(`2000-01-01T${shift.end_time}`).getTime() - new Date(`2000-01-01T${shift.start_time}`).getTime()) / (1000 * 60 * 60))}h
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-    );
-  }
+  const selectedDate = getDateForDay(selectedDay);
+  const selectedDayShifts = getShiftsForDay(selectedDay);
+  const isToday = selectedDate.toDateString() === new Date().toDateString();
 
   return (
     <div className="space-y-6">
-      {/* Week Navigation */}
+      {/* Day Navigation */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold">Weekly Schedule</h2>
-          <Button variant="outline" onClick={() => setShowCurrentDay(true)}>
-            Today's View
-          </Button>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Calendar className="w-6 h-6" />
+            {days[selectedDay - 1]} Schedule
+            {isToday && <Badge variant="default">Today</Badge>}
+          </h2>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={goToPreviousWeek}>
-            ← Previous
+          <Button variant="outline" onClick={goToPreviousDay}>
+            <ChevronLeft className="w-4 h-4" />
           </Button>
           <Button variant="outline" onClick={goToCurrentWeek}>
-            Current Week
+            Today
           </Button>
-          <Button variant="outline" onClick={goToNextWeek}>
-            Next →
+          <Button variant="outline" onClick={goToNextDay}>
+            <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
       <div className="text-center text-sm text-muted-foreground">
-        Week of {currentWeekStart.toLocaleDateString()} - {getDateForDay(7).toLocaleDateString()}
+        {selectedDate.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })}
+      </div>
+
+      {/* Add Shift Button */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add My Shift
+        </Button>
       </div>
 
       {/* Add Shift Form */}
-      {selectedDay && (
+      {showAddForm && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">
             Add Shift for {days[selectedDay - 1]}
@@ -279,7 +262,7 @@ export const WeeklyCalendar = () => {
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => setSelectedDay(null)}
+                onClick={() => setShowAddForm(false)}
               >
                 Cancel
               </Button>
@@ -288,56 +271,75 @@ export const WeeklyCalendar = () => {
         </Card>
       )}
 
-      {/* Calendar Grid */}
+      {/* Daily Shifts View */}
       {loading ? (
         <div className="text-center py-8">
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading schedule...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+        <Card className="p-6">
+          {selectedDayShifts.length === 0 ? (
+            <div className="text-center py-8">
+              <Clock className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No shifts scheduled for {days[selectedDay - 1]}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <h3 className="font-semibold text-lg mb-4">
+                Staff on Duty ({selectedDayShifts.length})
+              </h3>
+              {selectedDayShifts.map((shift) => (
+                <div key={shift.id} className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="font-semibold">{shift.user_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
+                    </p>
+                  </div>
+                  <Badge variant="outline">
+                    {Math.round((new Date(`2000-01-01T${shift.end_time}`).getTime() - new Date(`2000-01-01T${shift.start_time}`).getTime()) / (1000 * 60 * 60))}h
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Week Overview */}
+      <Card className="p-6">
+        <h3 className="font-semibold text-lg mb-4">This Week Overview</h3>
+        <div className="grid grid-cols-7 gap-2">
           {days.map((day, index) => {
             const dayOfWeek = index + 1;
             const dayShifts = getShiftsForDay(dayOfWeek);
             const dayDate = getDateForDay(dayOfWeek);
-            const isToday = dayDate.toDateString() === new Date().toDateString();
+            const isDaySelected = dayOfWeek === selectedDay;
+            const isDayToday = dayDate.toDateString() === new Date().toDateString();
             
             return (
-              <Card key={day} className={`p-4 ${isToday ? 'border-primary bg-primary/5' : ''}`}>
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <h3 className="font-semibold">{day}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {dayDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedDay(dayOfWeek)}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
+              <button
+                key={day}
+                onClick={() => setSelectedDay(dayOfWeek)}
+                className={`p-2 rounded-lg text-center transition-colors ${
+                  isDaySelected 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted hover:bg-muted/80'
+                } ${isDayToday ? 'ring-2 ring-primary' : ''}`}
+              >
+                <div className="text-xs font-medium">{day.slice(0, 3)}</div>
+                <div className="text-xs text-muted-foreground">
+                  {dayDate.getDate()}
                 </div>
-                
-                <div className="space-y-2 min-h-[200px]">
-                  {dayShifts.map((shift) => (
-                    <div key={shift.id} className="bg-muted p-2 rounded text-xs">
-                      <p className="font-medium">{shift.user_name}</p>
-                      <p className="text-muted-foreground">
-                        {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
-                      </p>
-                    </div>
-                  ))}
-                  {dayShifts.length === 0 && (
-                    <p className="text-muted-foreground text-xs">No shifts</p>
-                  )}
+                <div className="text-xs mt-1">
+                  {dayShifts.length} shifts
                 </div>
-              </Card>
+              </button>
             );
           })}
         </div>
-      )}
+      </Card>
     </div>
   );
 };

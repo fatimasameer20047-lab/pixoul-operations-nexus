@@ -60,8 +60,8 @@ export const AnnouncementForm = () => {
           title: data.title,
           message: data.message,
           image_url: imageUrl,
-          author_id: crypto.randomUUID(),
-          author_name: currentUser
+        author_id: currentUser.id,
+        author_name: currentUser.full_name
         });
 
       if (error) throw error;

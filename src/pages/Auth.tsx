@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 const Auth = () => {
   const { currentUser, signIn, loading } = useAuth();
   const navigate = useNavigate();
-  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,11 +30,11 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !password) return;
+    if (!username.trim() || !password) return;
 
     setIsLoading(true);
     
-    const { error } = await signIn(fullName.trim(), password);
+    const { error } = await signIn(username.trim(), password);
     
     if (!error) {
       navigate('/');
@@ -59,19 +59,19 @@ const Auth = () => {
           <CardHeader>
             <CardTitle>Staff Sign In</CardTitle>
             <CardDescription>
-              Enter your full name and the staff password to continue
+              Enter your username and password to continue
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignIn} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="fullName"
+                  id="username"
                   type="text"
-                  placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                   disabled={isLoading}
                 />
@@ -93,7 +93,7 @@ const Auth = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading || !fullName.trim() || !password}
+                disabled={isLoading || !username.trim() || !password}
               >
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </Button>

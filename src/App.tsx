@@ -12,6 +12,7 @@ import LostFound from "./pages/LostFound";
 import MaintenanceReports from "./pages/MaintenanceReports";
 import TroubleshootAssistant from "./pages/TroubleshootAssistant";
 import StaffScheduling from "./pages/StaffScheduling";
+import StaffAccount from "./pages/StaffAccount";
 import Announcements from "./pages/Announcements";
 import PrivateChat from "./pages/PrivateChat";
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/maintenance" element={<ProtectedRoute><MaintenanceReports /></ProtectedRoute>} />
             <Route path="/troubleshoot" element={<ProtectedRoute><TroubleshootAssistant /></ProtectedRoute>} />
             <Route path="/scheduling" element={<ProtectedRoute><StaffScheduling /></ProtectedRoute>} />
+            <Route path="/account" element={<ProtectedRoute><StaffAccount /></ProtectedRoute>} />
             <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
             <Route path="/private-chat" element={<ProtectedRoute><PrivateChat /></ProtectedRoute>} />
             <Route path="/staff-scheduling" element={<ProtectedRoute><StaffScheduling /></ProtectedRoute>} />

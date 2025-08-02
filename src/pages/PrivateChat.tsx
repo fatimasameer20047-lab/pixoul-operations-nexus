@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useRealtime } from '@/hooks/useRealtime';
-import { MessageSquare, Users, Search, Hash } from 'lucide-react';
+import { MessageSquare, Users, Search, Hash, User } from 'lucide-react';
 
 interface Channel {
   id: string;
@@ -18,17 +19,28 @@ interface Channel {
   department?: string;
 }
 
+interface StaffMember {
+  id: string;
+  username: string;
+  full_name: string;
+  department: string;
+}
+
 const PrivateChat = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [directMessageUser, setDirectMessageUser] = useState<string>('');
+  const [directMessageUser, setDirectMessageUser] = useState<StaffMember | null>(null);
   const [showDirectMessage, setShowDirectMessage] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [staffSearchTerm, setStaffSearchTerm] = useState('');
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const { currentUser } = useAuth();
   const { notifications } = useRealtime();
 
   useEffect(() => {
     fetchChannels();
+    fetchStaffMembers();
   }, []);
 
   const fetchChannels = async () => {
@@ -51,22 +63,41 @@ const PrivateChat = () => {
     }
   };
 
-  const startDirectMessage = () => {
-    if (!directMessageUser.trim()) {
+  const fetchStaffMembers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('staff_accounts')
+        .select('*')
+        .neq('id', currentUser?.id) // Exclude current user
+        .order('full_name');
+
+      if (error) throw error;
+      setStaffMembers(data || []);
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Please enter a username for direct message",
+        description: "Failed to load staff members",
         variant: "destructive"
       });
-      return;
     }
+  };
+
+  const startDirectMessage = (staff: StaffMember) => {
+    setDirectMessageUser(staff);
     setShowDirectMessage(true);
     setSelectedChannel(null);
+    setStaffSearchTerm('');
   };
 
   const filteredChannels = channels.filter(channel =>
     channel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     channel.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredStaff = staffMembers.filter(staff =>
+    staff.full_name.toLowerCase().includes(staffSearchTerm.toLowerCase()) ||
+    staff.username.toLowerCase().includes(staffSearchTerm.toLowerCase()) ||
+    staff.department.toLowerCase().includes(staffSearchTerm.toLowerCase())
   );
 
   const emergencyNotifications = notifications.filter(n => n.type === 'emergency');
@@ -89,13 +120,13 @@ const PrivateChat = () => {
                   ← Back to Channels
                 </Button>
                 <h1 className="font-bold text-2xl">
-                  {showDirectMessage ? `Direct Message with ${directMessageUser}` : `#${selectedChannel?.name}`}
+                  {showDirectMessage ? `Direct Message with ${directMessageUser?.full_name}` : `#${selectedChannel?.name}`}
                 </h1>
               </div>
               
               <ChatRoom
                 channelId={selectedChannel?.id}
-                recipientId={showDirectMessage ? directMessageUser : undefined}
+                recipientId={showDirectMessage ? directMessageUser?.id : undefined}
                 channelName={selectedChannel?.name}
                 isDirectMessage={showDirectMessage}
               />
@@ -143,18 +174,52 @@ const PrivateChat = () => {
               <Card className="p-6">
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                   <MessageSquare className="w-5 h-5" />
-                  Direct Messages
+                  Direct Messages - Search Staff
                 </h3>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter username for direct message"
-                    value={directMessageUser}
-                    onChange={(e) => setDirectMessageUser(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button onClick={startDirectMessage}>
-                    Start Chat
-                  </Button>
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Search staff by name, username, or department..."
+                      value={staffSearchTerm}
+                      onChange={(e) => setStaffSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  {staffSearchTerm && (
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {filteredStaff.map((staff) => (
+                        <div
+                          key={staff.id}
+                          className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors cursor-pointer"
+                          onClick={() => startDirectMessage(staff)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <User className="w-4 h-4 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{staff.full_name}</p>
+                              <p className="text-sm text-muted-foreground">@{staff.username} • {staff.department}</p>
+                            </div>
+                          </div>
+                          <Button size="sm" variant="outline">
+                            Chat
+                          </Button>
+                        </div>
+                      ))}
+                      {filteredStaff.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No staff members found matching your search
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {!staffSearchTerm && (
+                    <p className="text-sm text-muted-foreground">
+                      Start typing to search for staff members to chat with
+                    </p>
+                  )}
                 </div>
               </Card>
 

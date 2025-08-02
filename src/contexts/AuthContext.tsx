@@ -1,9 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+interface StaffAccount {
+  id: string;
+  username: string;
+  full_name: string;
+  department: string;
+}
 
 interface AuthContextType {
-  currentUser: string | null;
-  signIn: (fullName: string, password: string) => Promise<{ error: any }>;
+  currentUser: StaffAccount | null;
+  signIn: (username: string, password: string) => Promise<{ error: any }>;
   signOut: () => void;
   loading: boolean;
 }
@@ -19,43 +27,72 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<StaffAccount | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is already logged in (stored in localStorage)
-    const storedUser = localStorage.getItem('pixoul_current_user');
+    const storedUser = localStorage.getItem('pixoul_staff_account');
     if (storedUser) {
-      setCurrentUser(storedUser);
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setCurrentUser(parsedUser);
+      } catch (error) {
+        localStorage.removeItem('pixoul_staff_account');
+      }
     }
     setLoading(false);
   }, []);
 
-  const signIn = async (fullName: string, password: string) => {
-    if (password !== 'Pixoul_Help123') {
-      const error = { message: 'Access denied. Invalid password.' };
+  const signIn = async (username: string, password: string) => {
+    try {
+      // Query the staff_accounts table
+      const { data: staff, error } = await supabase
+        .from('staff_accounts')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .single();
+
+      if (error || !staff) {
+        const errorMsg = 'Invalid username or password';
+        toast({
+          title: "Access Denied",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        return { error: { message: errorMsg } };
+      }
+
+      // Store the user in localStorage and state
+      const staffAccount: StaffAccount = {
+        id: staff.id,
+        username: staff.username,
+        full_name: staff.full_name,
+        department: staff.department
+      };
+      
+      localStorage.setItem('pixoul_staff_account', JSON.stringify(staffAccount));
+      setCurrentUser(staffAccount);
+      
       toast({
-        title: "Access Denied",
-        description: error.message,
+        title: "Success",
+        description: `Welcome, ${staff.full_name}!`
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || 'Login failed',
         variant: "destructive"
       });
       return { error };
     }
-
-    // Store the user in localStorage and state
-    localStorage.setItem('pixoul_current_user', fullName);
-    setCurrentUser(fullName);
-    
-    toast({
-      title: "Success",
-      description: `Welcome, ${fullName}!`
-    });
-
-    return { error: null };
   };
 
   const signOut = () => {
-    localStorage.removeItem('pixoul_current_user');
+    localStorage.removeItem('pixoul_staff_account');
     setCurrentUser(null);
     toast({
       title: "Signed Out",

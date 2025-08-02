@@ -78,7 +78,7 @@ const LostFound = () => {
         id: Date.now().toString(),
         ...data,
         image: imageData,
-        reported_by: currentUser,
+        reported_by: currentUser.full_name,
         status: 'lost',
         created_at: new Date().toISOString()
       };

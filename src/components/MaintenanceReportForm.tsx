@@ -59,7 +59,7 @@ export const MaintenanceReportForm = ({ onSuccess }: MaintenanceReportFormProps)
         id: Date.now().toString(),
         ...data,
         image: imageData,
-        reported_by: currentUser,
+        reported_by: currentUser.full_name,
         status: 'open',
         created_at: new Date().toISOString()
       };
