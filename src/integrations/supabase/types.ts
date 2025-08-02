@@ -14,7 +14,179 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      announcements: {
+        Row: {
+          author_id: string
+          author_name: string
+          created_at: string
+          id: string
+          image_url: string | null
+          message: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          message: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          message?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chat_channels: {
+        Row: {
+          created_at: string
+          department: string | null
+          description: string | null
+          id: string
+          is_private: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_emergency: boolean
+          message: string
+          recipient_id: string | null
+          sender_id: string
+          sender_name: string
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_emergency?: boolean
+          message: string
+          recipient_id?: string | null
+          sender_id: string
+          sender_name: string
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_emergency?: boolean
+          message?: string
+          recipient_id?: string | null
+          sender_id?: string
+          sender_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          department: string | null
+          full_name: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          full_name: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          full_name?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_shifts: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          start_time: string
+          updated_at: string
+          user_id: string
+          user_name: string
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          start_time: string
+          updated_at?: string
+          user_id: string
+          user_name: string
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
