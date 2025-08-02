@@ -151,12 +151,43 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_accounts: {
+        Row: {
+          created_at: string
+          department: string | null
+          full_name: string
+          id: string
+          password: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          full_name: string
+          id?: string
+          password: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          full_name?: string
+          id?: string
+          password?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       weekly_shifts: {
         Row: {
           created_at: string
           day_of_week: number
           end_time: string
           id: string
+          staff_account_id: string | null
           start_time: string
           updated_at: string
           user_id: string
@@ -168,6 +199,7 @@ export type Database = {
           day_of_week: number
           end_time: string
           id?: string
+          staff_account_id?: string | null
           start_time: string
           updated_at?: string
           user_id: string
@@ -179,13 +211,22 @@ export type Database = {
           day_of_week?: number
           end_time?: string
           id?: string
+          staff_account_id?: string | null
           start_time?: string
           updated_at?: string
           user_id?: string
           user_name?: string
           week_start_date?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "weekly_shifts_staff_account_id_fkey"
+            columns: ["staff_account_id"]
+            isOneToOne: false
+            referencedRelation: "staff_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
