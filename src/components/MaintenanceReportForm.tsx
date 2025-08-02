@@ -92,7 +92,7 @@ export const MaintenanceReportForm = ({ onSuccess }: MaintenanceReportFormProps)
   return (
     <Card className="cyber-border">
       <CardHeader>
-        <CardTitle className="font-orbitron">Report Equipment Issue</CardTitle>
+        <CardTitle>Report Equipment Issue</CardTitle>
         <CardDescription>
           Submit details about equipment problems or maintenance needs
         </CardDescription>

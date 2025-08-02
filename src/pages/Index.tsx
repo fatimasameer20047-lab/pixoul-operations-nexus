@@ -8,10 +8,10 @@ const Index = () => {
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="font-orbitron font-bold text-5xl neon-text mb-4">
+          <h1 className="font-bold text-5xl mb-4">
             Pixoul Staff Hub
           </h1>
-          <p className="font-exo text-xl text-muted-foreground">
+          <p className="text-xl text-muted-foreground">
             Your Central Dashboard for Staff Operations
           </p>
         </div>

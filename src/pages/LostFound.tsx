@@ -155,10 +155,10 @@ const LostFound = () => {
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
             <BackButton className="mb-4" />
-            <h1 className="font-orbitron font-bold text-3xl neon-text mb-2">
+            <h1 className="font-bold text-3xl mb-2">
               Lost & Found System
             </h1>
-            <p className="text-muted-foreground font-exo text-lg">
+            <p className="text-muted-foreground text-lg">
               Manage lost and found items from the VR arcade. Track, log, and reunite items with their owners.
             </p>
           </div>
@@ -167,7 +167,7 @@ const LostFound = () => {
             {/* Report Form */}
             <Card className="cyber-border">
               <CardHeader>
-                <CardTitle className="font-orbitron">Report Lost Item</CardTitle>
+                <CardTitle>Report Lost Item</CardTitle>
                 <CardDescription>
                   Submit details about a lost item found on the premises
                 </CardDescription>
@@ -239,7 +239,7 @@ const LostFound = () => {
 
             {/* Items List */}
             <div className="space-y-4">
-              <h2 className="font-orbitron font-semibold text-xl text-primary">
+              <h2 className="font-semibold text-xl text-primary">
                 Recent Lost Items ({items.length})
               </h2>
               
@@ -249,13 +249,13 @@ const LostFound = () => {
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
-                          <h3 className="font-orbitron font-semibold text-lg">
+                          <h3 className="font-semibold text-lg">
                             {item.item_name}
                           </h3>
-                          <p className="text-sm text-muted-foreground font-exo">
+                          <p className="text-sm text-muted-foreground">
                             Found at: {item.location_found}
                           </p>
-                          <p className="text-xs text-muted-foreground font-exo">
+                          <p className="text-xs text-muted-foreground">
                             {new Date(item.created_at).toLocaleDateString()}
                           </p>
                         </div>
@@ -275,7 +275,7 @@ const LostFound = () => {
                         </div>
                       </div>
                       
-                      <p className="text-sm font-exo mb-3">
+                      <p className="text-sm mb-3">
                         {item.description}
                       </p>
                       

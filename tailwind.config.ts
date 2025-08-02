@@ -70,8 +70,8 @@ export default {
 				}
 			},
 			fontFamily: {
-				orbitron: ['Orbitron', 'monospace'],
-				exo: ['Exo 2', 'sans-serif']
+				sans: ['Inter', 'system-ui', 'sans-serif'],
+				display: ['Inter', 'system-ui', 'sans-serif']
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

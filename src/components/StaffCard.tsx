@@ -28,10 +28,10 @@ export const StaffCard = ({ title, description, icon, route, variant = "primary"
         <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">
           {icon}
         </div>
-        <h3 className="font-orbitron font-bold text-xl text-foreground group-hover:neon-text transition-all duration-300">
+        <h3 className="font-bold text-xl text-foreground transition-all duration-300">
           {title}
         </h3>
-        <p className="text-muted-foreground font-exo text-sm leading-relaxed">
+        <p className="text-muted-foreground text-sm leading-relaxed">
           {description}
         </p>
       </div>

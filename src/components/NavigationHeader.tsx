@@ -16,14 +16,14 @@ export const NavigationHeader = () => {
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <button 
           onClick={() => navigate('/')}
-          className="font-orbitron font-bold text-xl neon-text hover:opacity-80 transition-opacity"
+          className="font-bold text-xl hover:opacity-80 transition-opacity"
         >
           Pixoul Staff Hub
         </button>
         
         {currentUser && (
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground font-exo">
+            <span className="text-sm text-muted-foreground">
               {currentUser}
             </span>
             <Button variant="outline" onClick={handleSignOut}>

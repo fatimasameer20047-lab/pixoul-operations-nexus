@@ -47,17 +47,17 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="font-orbitron font-bold text-3xl neon-text">
+          <h1 className="font-bold text-3xl">
             Pixoul Staff Hub
           </h1>
-          <p className="text-muted-foreground font-exo">
+          <p className="text-muted-foreground">
             Only staff members can access this dashboard
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="font-exo">Staff Sign In</CardTitle>
+            <CardTitle>Staff Sign In</CardTitle>
             <CardDescription>
               Enter your full name and the staff password to continue
             </CardDescription>
