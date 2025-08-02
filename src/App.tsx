@@ -32,6 +32,8 @@ const App = () => (
             <Route path="/troubleshoot" element={<ProtectedRoute><TroubleshootAssistant /></ProtectedRoute>} />
             <Route path="/scheduling" element={<ProtectedRoute><StaffScheduling /></ProtectedRoute>} />
             <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
+            <Route path="/private-chat" element={<ProtectedRoute><PrivateChat /></ProtectedRoute>} />
+            <Route path="/staff-scheduling" element={<ProtectedRoute><StaffScheduling /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><PrivateChat /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

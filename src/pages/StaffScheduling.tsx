@@ -5,6 +5,7 @@ import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { BackButton } from '@/components/BackButton';
+import { WeeklyCalendar } from '@/components/WeeklyCalendar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -368,9 +369,10 @@ const StaffScheduling = () => {
             {currentView === 'overview' && (
               <>
                 <BackButton className="mb-6" />
-                <h1 className="font-bold text-3xl mb-6">
-                  Staff Scheduling
-                </h1>
+            <h1 className="font-bold text-3xl mb-6">
+              Staff Scheduling
+            </h1>
+            <WeeklyCalendar />
                 {renderOverview()}
               </>
             )}
