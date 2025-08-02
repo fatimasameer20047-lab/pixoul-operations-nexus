@@ -1,9 +1,12 @@
 import { StaffCard } from "@/components/StaffCard";
+import { NavigationHeader } from "@/components/NavigationHeader";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background">
+      <NavigationHeader />
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="font-orbitron font-bold text-5xl neon-text mb-4">
             Pixoul Staff Hub
@@ -61,6 +64,7 @@ const Index = () => {
             route="/chat"
             variant="secondary"
           />
+        </div>
         </div>
       </div>
     </div>
