@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { Button } from '@/components/ui/button';
@@ -34,7 +33,7 @@ interface LostItem {
 }
 
 const LostFound = () => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [items, setItems] = useState<LostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -49,15 +48,12 @@ const LostFound = () => {
     }
   });
 
-  const fetchItems = async () => {
+  const fetchItems = () => {
     try {
-      const { data, error } = await supabase
-        .from('lost_items')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setItems(data || []);
+      const storedItems = localStorage.getItem('pixoul_lost_items');
+      if (storedItems) {
+        setItems(JSON.parse(storedItems));
+      }
     } catch (error) {
       console.error('Error fetching items:', error);
       toast({
@@ -70,20 +66,22 @@ const LostFound = () => {
     }
   };
 
-  const onSubmit = async (data: LostItemForm) => {
-    if (!user) return;
+  const onSubmit = (data: LostItemForm) => {
+    if (!currentUser) return;
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('lost_items')
-        .insert({
-          ...data,
-          reported_by: user.id,
-          status: 'lost'
-        });
+      const newItem: LostItem = {
+        id: Date.now().toString(),
+        ...data,
+        reported_by: currentUser,
+        status: 'lost',
+        created_at: new Date().toISOString()
+      };
 
-      if (error) throw error;
+      const updatedItems = [newItem, ...items];
+      setItems(updatedItems);
+      localStorage.setItem('pixoul_lost_items', JSON.stringify(updatedItems));
 
       toast({
         title: "Success",
@@ -91,7 +89,6 @@ const LostFound = () => {
       });
 
       form.reset();
-      fetchItems();
     } catch (error) {
       console.error('Error submitting item:', error);
       toast({
@@ -104,23 +101,23 @@ const LostFound = () => {
     }
   };
 
-  const toggleItemStatus = async (itemId: string, currentStatus: string) => {
+  const toggleItemStatus = (itemId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'lost' ? 'claimed' : 'lost';
     
     try {
-      const { error } = await supabase
-        .from('lost_items')
-        .update({ status: newStatus })
-        .eq('id', itemId);
-
-      if (error) throw error;
+      const updatedItems = items.map(item => 
+        item.id === itemId 
+          ? { ...item, status: newStatus as 'lost' | 'claimed' }
+          : item
+      );
+      
+      setItems(updatedItems);
+      localStorage.setItem('pixoul_lost_items', JSON.stringify(updatedItems));
 
       toast({
         title: "Success",
         description: `Item marked as ${newStatus}`
       });
-
-      fetchItems();
     } catch (error) {
       console.error('Error updating item status:', error);
       toast({

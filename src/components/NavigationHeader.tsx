@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
 export const NavigationHeader = () => {
-  const { user, signOut } = useAuth();
+  const { currentUser, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -21,10 +21,10 @@ export const NavigationHeader = () => {
           Pixoul Staff Hub
         </button>
         
-        {user && (
+        {currentUser && (
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground font-exo">
-              {user.email}
+              {currentUser}
             </span>
             <Button variant="outline" onClick={handleSignOut}>
               Sign Out

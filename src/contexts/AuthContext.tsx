@@ -1,14 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
+  currentUser: string | null;
+  signIn: (fullName: string, password: string) => Promise<{ error: any }>;
+  signOut: () => void;
   loading: boolean;
 }
 
@@ -23,93 +19,52 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Check if user is already logged in (stored in localStorage)
+    const storedUser = localStorage.getItem('pixoul_current_user');
+    if (storedUser) {
+      setCurrentUser(storedUser);
+    }
+    setLoading(false);
   }, []);
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+  const signIn = async (fullName: string, password: string) => {
+    if (password !== 'Pixoul_Help123') {
+      const error = { message: 'Access denied. Invalid password.' };
+      toast({
+        title: "Access Denied",
+        description: error.message,
+        variant: "destructive"
+      });
+      return { error };
+    }
+
+    // Store the user in localStorage and state
+    localStorage.setItem('pixoul_current_user', fullName);
+    setCurrentUser(fullName);
     
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          first_name: firstName,
-          last_name: lastName
-        }
-      }
+    toast({
+      title: "Success",
+      description: `Welcome, ${fullName}!`
     });
 
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Please check your email to confirm your account"
-      });
-    }
-
-    return { error };
+    return { error: null };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+  const signOut = () => {
+    localStorage.removeItem('pixoul_current_user');
+    setCurrentUser(null);
+    toast({
+      title: "Signed Out",
+      description: "You have been signed out successfully."
     });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-
-    return { error };
-  };
-
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
   };
 
   const value = {
-    user,
-    session,
-    signUp,
+    currentUser,
     signIn,
     signOut,
     loading
