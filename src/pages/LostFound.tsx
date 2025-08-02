@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavigationHeader } from '@/components/NavigationHeader';
+import { BackButton } from '@/components/BackButton';
+import { ImageUpload } from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,7 +18,7 @@ const lostItemSchema = z.object({
   item_name: z.string().min(1, "Item name is required"),
   description: z.string().min(1, "Description is required"),
   location_found: z.string().min(1, "Location is required"),
-  image_url: z.string().optional()
+  image: z.string().optional()
 });
 
 type LostItemForm = z.infer<typeof lostItemSchema>;
@@ -26,7 +28,7 @@ interface LostItem {
   item_name: string;
   description: string;
   location_found: string;
-  image_url?: string;
+  image?: string;
   status: 'lost' | 'claimed';
   created_at: string;
   reported_by: string;
@@ -37,6 +39,7 @@ const LostFound = () => {
   const [items, setItems] = useState<LostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [imageData, setImageData] = useState('');
 
   const form = useForm<LostItemForm>({
     resolver: zodResolver(lostItemSchema),
@@ -44,7 +47,7 @@ const LostFound = () => {
       item_name: '',
       description: '',
       location_found: '',
-      image_url: ''
+      image: ''
     }
   });
 
@@ -74,6 +77,7 @@ const LostFound = () => {
       const newItem: LostItem = {
         id: Date.now().toString(),
         ...data,
+        image: imageData,
         reported_by: currentUser,
         status: 'lost',
         created_at: new Date().toISOString()
@@ -89,6 +93,7 @@ const LostFound = () => {
       });
 
       form.reset();
+      setImageData('');
     } catch (error) {
       console.error('Error submitting item:', error);
       toast({
@@ -149,6 +154,7 @@ const LostFound = () => {
       <div className="p-6">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
+            <BackButton className="mb-4" />
             <h1 className="font-orbitron font-bold text-3xl neon-text mb-2">
               Lost & Found System
             </h1>
@@ -215,19 +221,13 @@ const LostFound = () => {
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="image_url"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Image URL (Optional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="https://example.com/image.jpg" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div>
+                      <label className="text-sm font-medium">Image (Optional)</label>
+                      <ImageUpload 
+                        onImageCapture={setImageData}
+                        currentImage={imageData}
+                      />
+                    </div>
 
                     <Button type="submit" className="w-full" disabled={submitting}>
                       {submitting ? 'Submitting...' : 'Report Lost Item'}
@@ -279,9 +279,9 @@ const LostFound = () => {
                         {item.description}
                       </p>
                       
-                      {item.image_url && (
+                      {item.image && (
                         <img 
-                          src={item.image_url} 
+                          src={item.image} 
                           alt={item.item_name}
                           className="w-full h-48 object-cover rounded-md"
                         />
