@@ -10,6 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtime } from '@/hooks/useRealtime';
+import { usePrivateMessageNotifications } from '@/hooks/usePrivateMessageNotifications';
 import { MessageSquare, Users, Search, Hash, User } from 'lucide-react';
 
 interface Channel {
@@ -37,6 +38,7 @@ const PrivateChat = () => {
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
   const { notifications } = useRealtime();
+  const { notifications: privateNotifications, unreadCount, markAsRead, clearNotifications } = usePrivateMessageNotifications();
 
   useEffect(() => {
     fetchChannels();
@@ -87,6 +89,11 @@ const PrivateChat = () => {
     setShowDirectMessage(true);
     setSelectedChannel(null);
     setStaffSearchTerm('');
+    
+    // Mark notifications from this user as read
+    privateNotifications
+      .filter(n => n.sender_id === staff.id)
+      .forEach(n => markAsRead(n.id));
   };
 
   const filteredChannels = channels.filter(channel =>
@@ -147,11 +154,18 @@ const PrivateChat = () => {
             
             <div className="flex justify-between items-center mb-6">
               <h1 className="font-bold text-3xl">Private Chat</h1>
-              {emergencyNotifications.length > 0 && (
-                <Badge variant="destructive" className="animate-pulse">
-                  🚨 {emergencyNotifications.length} Emergency Alert(s)
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Badge variant="default" className="animate-pulse">
+                    💬 {unreadCount} New Message(s)
+                  </Badge>
+                )}
+                {emergencyNotifications.length > 0 && (
+                  <Badge variant="destructive" className="animate-pulse">
+                    🚨 {emergencyNotifications.length} Emergency Alert(s)
+                  </Badge>
+                )}
+              </div>
             </div>
             
             <div className="space-y-6">
@@ -169,6 +183,50 @@ const PrivateChat = () => {
                   className="pl-10"
                 />
               </div>
+
+              {/* Unread Messages */}
+              {privateNotifications.length > 0 && (
+                <Card className="p-6 border-primary">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-semibold text-lg flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5" />
+                      Unread Messages ({privateNotifications.length})
+                    </h3>
+                    <Button variant="outline" size="sm" onClick={clearNotifications}>
+                      Mark All Read
+                    </Button>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {privateNotifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className="p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors cursor-pointer"
+                        onClick={() => {
+                          const staff = staffMembers.find(s => s.id === notification.sender_id);
+                          if (staff) startDirectMessage(staff);
+                        }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{notification.sender_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {notification.message.length > 50 
+                                ? notification.message.substring(0, 50) + '...'
+                                : notification.message}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(notification.timestamp).toLocaleTimeString()}
+                            </p>
+                          </div>
+                          <Button size="sm" variant="outline">
+                            Reply
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
 
               {/* Direct Messages */}
               <Card className="p-6">

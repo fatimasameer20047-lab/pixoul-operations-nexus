@@ -12,12 +12,15 @@ import { Send, AlertTriangle, Paperclip } from 'lucide-react';
 
 interface Message {
   id: string;
+  sender_id: string;
   sender_name: string;
   message: string;
   file_url?: string;
   file_type?: string;
   is_emergency: boolean;
   created_at: string;
+  recipient_id?: string;
+  channel_id?: string;
 }
 
 interface ChatRoomProps {
@@ -52,20 +55,31 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
     
     // Set up real-time subscription
     const channel = supabase
-      .channel('chat-messages')
+      .channel('chat-messages-realtime')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'chat_messages',
-          filter: isDirectMessage 
-            ? `recipient_id=eq.${recipientId}` 
-            : `channel_id=eq.${channelId}`
+          table: 'chat_messages'
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          setMessages(prev => [...prev, newMessage]);
+          
+          // For direct messages, show if it's part of this conversation
+          if (isDirectMessage && currentUser && recipientId) {
+            const isPartOfConversation = 
+              (newMessage.sender_id === currentUser.id && newMessage.recipient_id === recipientId) ||
+              (newMessage.sender_id === recipientId && newMessage.recipient_id === currentUser.id);
+            
+            if (isPartOfConversation) {
+              setMessages(prev => [...prev, newMessage]);
+            }
+          } 
+          // For channel messages
+          else if (!isDirectMessage && newMessage.channel_id === channelId) {
+            setMessages(prev => [...prev, newMessage]);
+          }
         }
       )
       .subscribe();
@@ -77,21 +91,28 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
 
   const fetchMessages = async () => {
     try {
-      let query = supabase
-        .from('chat_messages')
-        .select('*')
-        .order('created_at', { ascending: true });
+      if (isDirectMessage && currentUser && recipientId) {
+        // For direct messages, fetch messages where:
+        // - current user sent to recipient OR recipient sent to current user
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${currentUser.id})`)
+          .order('created_at', { ascending: true });
 
-      if (isDirectMessage) {
-        query = query.eq('recipient_id', recipientId);
-      } else {
-        query = query.eq('channel_id', channelId);
+        if (error) throw error;
+        setMessages(data || []);
+      } else if (!isDirectMessage && channelId) {
+        // For channel messages
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('channel_id', channelId)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        setMessages(data || []);
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      setMessages(data || []);
     } catch (error: any) {
       toast({
         title: "Error",

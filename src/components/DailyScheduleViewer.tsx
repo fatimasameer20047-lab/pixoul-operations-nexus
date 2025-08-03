@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Clock, Users } from 'lucide-react';
 
 interface Shift {
   id: string;
@@ -19,19 +15,11 @@ interface Shift {
   week_start_date: string;
 }
 
-interface ShiftForm {
-  start_time: string;
-  end_time: string;
-}
-
-export const WeeklyCalendar = () => {
+export const DailyScheduleViewer = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(getCurrentDayOfWeek());
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const { currentUser } = useAuth();
-  const { register, handleSubmit, reset } = useForm<ShiftForm>();
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -51,25 +39,12 @@ export const WeeklyCalendar = () => {
     return date.toISOString().split('T')[0];
   }
 
-  // Auto-update to current day daily
-  useEffect(() => {
-    const updateCurrentDay = () => {
-      setSelectedDay(getCurrentDayOfWeek());
-    };
-    
-    // Update immediately and then every hour to catch day changes
-    updateCurrentDay();
-    const interval = setInterval(updateCurrentDay, 60 * 60 * 1000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
   useEffect(() => {
     fetchShifts();
     
     // Set up real-time subscription
     const channel = supabase
-      .channel('shifts-realtime')
+      .channel('daily-schedule-realtime')
       .on(
         'postgres_changes',
         {
@@ -112,46 +87,6 @@ export const WeeklyCalendar = () => {
     }
   };
 
-  const onSubmit = async (data: ShiftForm) => {
-    if (!currentUser) return;
-
-    try {
-      const weekStartString = formatDate(currentWeekStart);
-      
-      // Use upsert to handle existing shifts
-      const { error } = await supabase
-        .from('weekly_shifts')
-        .upsert({
-          user_id: currentUser.id,
-          user_name: currentUser.full_name,
-          staff_account_id: currentUser.id,
-          day_of_week: selectedDay,
-          start_time: data.start_time,
-          end_time: data.end_time,
-          week_start_date: weekStartString
-        }, {
-          onConflict: 'user_id, day_of_week, week_start_date'
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Shift added for ${days[selectedDay - 1]}`
-      });
-
-      reset();
-      setShowAddForm(false);
-      fetchShifts();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
   const getShiftsForDay = (dayOfWeek: number) => {
     return shifts.filter(shift => shift.day_of_week === dayOfWeek);
   };
@@ -171,11 +106,6 @@ export const WeeklyCalendar = () => {
     setSelectedDay(prev => prev === 7 ? 1 : prev + 1);
   };
 
-  const goToCurrentWeek = () => {
-    setCurrentWeekStart(getMonday(new Date()));
-    setSelectedDay(getCurrentDayOfWeek());
-  };
-
   const getDateForDay = (dayOfWeek: number) => {
     const date = new Date(currentWeekStart);
     date.setDate(date.getDate() + dayOfWeek - 1);
@@ -193,16 +123,13 @@ export const WeeklyCalendar = () => {
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Calendar className="w-6 h-6" />
-            {days[selectedDay - 1]} Schedule
+            Weekly Schedule – Current Week: {days[selectedDay - 1]}
             {isToday && <Badge variant="default">Today</Badge>}
           </h2>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={goToPreviousDay}>
             <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" onClick={goToCurrentWeek}>
-            Today
           </Button>
           <Button variant="outline" onClick={goToNextDay}>
             <ChevronRight className="w-4 h-4" />
@@ -219,58 +146,6 @@ export const WeeklyCalendar = () => {
         })}
       </div>
 
-      {/* Add Shift Button */}
-      <div className="flex justify-end">
-        <Button 
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Add My Shift
-        </Button>
-      </div>
-
-      {/* Add Shift Form */}
-      {showAddForm && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">
-            Add Shift for {days[selectedDay - 1]}
-          </h3>
-          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="start_time">Start Time</Label>
-              <Input
-                id="start_time"
-                type="time"
-                {...register('start_time', { required: true })}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="end_time">End Time</Label>
-              <Input
-                id="end_time"
-                type="time"
-                {...register('end_time', { required: true })}
-                className="mt-1"
-              />
-            </div>
-            <div className="flex items-end gap-2">
-              <Button type="submit" className="flex-1">
-                Add Shift
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setShowAddForm(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </Card>
-      )}
-
       {/* Daily Shifts View */}
       {loading ? (
         <div className="text-center py-8">
@@ -286,7 +161,8 @@ export const WeeklyCalendar = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              <h3 className="font-semibold text-lg mb-4">
+              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5" />
                 Staff on Duty ({selectedDayShifts.length})
               </h3>
               {selectedDayShifts.map((shift) => (

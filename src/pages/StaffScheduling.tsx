@@ -5,7 +5,8 @@ import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { BackButton } from '@/components/BackButton';
-import { WeeklyCalendar } from '@/components/WeeklyCalendar';
+import { WeeklyScheduleGrid } from '@/components/WeeklyScheduleGrid';
+import { DailyScheduleViewer } from '@/components/DailyScheduleViewer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -103,10 +104,10 @@ const StaffScheduling = () => {
         >
           <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
             <Calendar size={20} />
-            Weekly Schedule
+            Weekly Schedule – Current Week
           </h3>
           <p className="text-sm text-muted-foreground">
-            View and manage the current week's staff assignments.
+            Day-by-day viewer of all staff shifts with navigation arrows.
           </p>
         </div>
         
@@ -156,31 +157,8 @@ const StaffScheduling = () => {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" onClick={() => setCurrentView('overview')}>← Back</Button>
-        <h2 className="font-semibold text-xl">Weekly Schedule</h2>
       </div>
-      
-      <div className="space-y-4">
-        <h3 className="font-semibold text-lg text-primary">Current Week</h3>
-        
-        {weeklySchedule.map((schedule, index) => (
-          <Card key={index}>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h4 className="font-medium">{schedule.day}</h4>
-                  <p className="text-sm text-muted-foreground">{schedule.shift}</p>
-                  <p className="text-sm">{schedule.staff}</p>
-                </div>
-                <Badge 
-                  variant={schedule.status === 'Confirmed' ? 'secondary' : 'destructive'}
-                >
-                  {schedule.status}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <DailyScheduleViewer />
     </div>
   );
 
@@ -369,10 +347,10 @@ const StaffScheduling = () => {
             {currentView === 'overview' && (
               <>
                 <BackButton className="mb-6" />
-            <h1 className="font-bold text-3xl mb-6">
-              Staff Scheduling
-            </h1>
-            <WeeklyCalendar />
+                <h1 className="font-bold text-3xl mb-6">
+                  Staff Scheduling
+                </h1>
+                <WeeklyScheduleGrid />
                 {renderOverview()}
               </>
             )}
