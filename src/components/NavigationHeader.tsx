@@ -1,4 +1,4 @@
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { usePrivateMessageNotifications } from '@/hooks/usePrivateMessageNotific
 import { MessageSquare } from 'lucide-react';
 
 export const NavigationHeader = () => {
-  const { currentUser, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { unreadCount } = usePrivateMessageNotifications();
 
@@ -25,7 +25,7 @@ export const NavigationHeader = () => {
           Pixoul Staff Hub
         </button>
         
-        {currentUser && (
+        {user && (
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/private-chat')}
@@ -43,7 +43,7 @@ export const NavigationHeader = () => {
               )}
             </button>
             <span className="text-sm text-muted-foreground">
-              {currentUser.full_name}
+              {user.full_name}
             </span>
             <Button variant="outline" onClick={handleSignOut}>
               Sign Out

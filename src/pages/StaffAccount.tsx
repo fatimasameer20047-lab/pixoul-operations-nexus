@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/ui/button';
@@ -8,46 +8,32 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { User, Shield, MapPin, Edit } from 'lucide-react';
 
 const StaffAccount = () => {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    username: currentUser?.username || '',
-    full_name: currentUser?.full_name || '',
-    department: currentUser?.department || ''
+    username: user?.username || '',
+    full_name: user?.full_name || '',
+    department: user?.department || ''
   });
   const [loading, setLoading] = useState(false);
 
   const handleUpdateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!user) return;
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('staff_accounts')
-        .update({
-          username: formData.username,
-          full_name: formData.full_name,
-          department: formData.department
-        })
-        .eq('id', currentUser.id);
-
-      if (error) throw error;
-
+      // For local auth, we'll just show a message that editing is not available
       toast({
-        title: "Success",
-        description: "Account updated successfully"
+        title: "Info",
+        description: "Profile editing is not available in demo mode",
+        variant: "default"
       });
 
       setIsEditing(false);
-      
-      // Update localStorage with new data
-      const updatedUser = { ...currentUser, ...formData };
-      localStorage.setItem('pixoul_staff_account', JSON.stringify(updatedUser));
       
     } catch (error: any) {
       toast({
@@ -60,7 +46,7 @@ const StaffAccount = () => {
     }
   };
 
-  if (!currentUser) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-background">
         <NavigationHeader />
@@ -158,27 +144,27 @@ const StaffAccount = () => {
                     </form>
                   ) : (
                     <div className="space-y-4">
-                      <div>
+                      <div>          
                         <Label className="text-sm font-medium text-muted-foreground">Username</Label>
-                        <p className="text-lg">@{currentUser.username}</p>
+                        <p className="text-lg">@{user.username}</p>
                       </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
-                        <p className="text-lg">{currentUser.full_name}</p>
+                        <p className="text-lg">{user.full_name}</p>
                       </div>
 
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Department</Label>
                         <div className="flex items-center gap-2 mt-1">
                           <MapPin className="w-4 h-4 text-muted-foreground" />
-                          <Badge variant="outline">{currentUser.department}</Badge>
+                          <Badge variant="outline">{user.department}</Badge>
                         </div>
                       </div>
 
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Account ID</Label>
-                        <p className="text-sm font-mono text-muted-foreground">{currentUser.id}</p>
+                        <p className="text-sm font-mono text-muted-foreground">{user.id}</p>
                       </div>
                     </div>
                   )}
@@ -237,7 +223,7 @@ const StaffAccount = () => {
                   </div>
                   
                   <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-2xl font-bold text-primary">{currentUser.department}</p>
+                    <p className="text-2xl font-bold text-primary">{user.department}</p>
                     <p className="text-sm text-muted-foreground">Department</p>
                   </div>
                   
