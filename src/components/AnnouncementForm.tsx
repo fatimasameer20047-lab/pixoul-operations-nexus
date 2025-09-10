@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { FileUpload } from './FileUpload';
 
 const announcementSchema = z.object({
@@ -22,14 +22,14 @@ type AnnouncementForm = z.infer<typeof announcementSchema>;
 export const AnnouncementForm = () => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<AnnouncementForm>({
     resolver: zodResolver(announcementSchema)
   });
 
   const onSubmit = async (data: AnnouncementForm) => {
-    if (!currentUser) return;
+    if (!user) return;
     
     setLoading(true);
     try {
@@ -60,8 +60,8 @@ export const AnnouncementForm = () => {
           title: data.title,
           message: data.message,
           image_url: imageUrl,
-        author_id: currentUser.id,
-        author_name: currentUser.full_name
+          author_id: user.id,
+          author_name: user.full_name
         });
 
       if (error) throw error;

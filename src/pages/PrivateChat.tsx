@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { useRealtime } from '@/hooks/useRealtime';
 import { usePrivateMessageNotifications } from '@/hooks/usePrivateMessageNotifications';
 import { MessageSquare, Users, Search, Hash, User } from 'lucide-react';
@@ -36,7 +36,7 @@ const PrivateChat = () => {
   const [staffSearchTerm, setStaffSearchTerm] = useState('');
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const { notifications } = useRealtime();
   const { notifications: privateNotifications, unreadCount, markAsRead, clearNotifications } = usePrivateMessageNotifications();
 
@@ -70,7 +70,7 @@ const PrivateChat = () => {
       const { data, error } = await supabase
         .from('staff_accounts')
         .select('*')
-        .neq('id', currentUser?.id) // Exclude current user
+        .neq('id', user?.id) // Exclude current user
         .order('full_name');
 
       if (error) throw error;

@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { Plus, Clock } from 'lucide-react';
 
 interface Shift {
@@ -30,7 +30,7 @@ export const WeeklyScheduleGrid = () => {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(1);
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const { register, handleSubmit, reset } = useForm<ShiftForm>();
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -94,7 +94,7 @@ export const WeeklyScheduleGrid = () => {
   };
 
   const onSubmit = async (data: ShiftForm) => {
-    if (!currentUser) return;
+    if (!user) return;
 
     try {
       const weekStartString = formatDate(currentWeekStart);
@@ -102,9 +102,9 @@ export const WeeklyScheduleGrid = () => {
       const { error } = await supabase
         .from('weekly_shifts')
         .upsert({
-          user_id: currentUser.id,
-          user_name: currentUser.full_name,
-          staff_account_id: currentUser.id,
+          user_id: user.id,
+          user_name: user.full_name,
+          staff_account_id: user.id,
           day_of_week: selectedDay,
           start_time: data.start_time,
           end_time: data.end_time,

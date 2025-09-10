@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { toast } from '@/hooks/use-toast';
 
 interface PrivateMessage {
@@ -23,10 +23,10 @@ interface PrivateMessageNotification {
 export const usePrivateMessageNotifications = () => {
   const [notifications, setNotifications] = useState<PrivateMessageNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!user) return;
 
     // Listen for new private messages directed to current user
     const channel = supabase
@@ -37,13 +37,13 @@ export const usePrivateMessageNotifications = () => {
           event: 'INSERT',
           schema: 'public',
           table: 'chat_messages',
-          filter: `recipient_id=eq.${currentUser.id}`
+          filter: `recipient_id=eq.${user.id}`
         },
         (payload) => {
           const newMessage = payload.new as PrivateMessage;
           
           // Don't notify about own messages
-          if (newMessage.sender_id === currentUser.id) return;
+          if (newMessage.sender_id === user.id) return;
           
           const notification: PrivateMessageNotification = {
             id: newMessage.id,
@@ -75,7 +75,7 @@ export const usePrivateMessageNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUser]);
+  }, [user]);
 
   const markAsRead = (notificationId?: string) => {
     if (notificationId) {

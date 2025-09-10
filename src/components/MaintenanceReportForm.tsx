@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,7 +36,7 @@ interface MaintenanceReportFormProps {
 }
 
 export const MaintenanceReportForm = ({ onSuccess }: MaintenanceReportFormProps) => {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [imageData, setImageData] = useState('');
 
@@ -51,7 +51,7 @@ export const MaintenanceReportForm = ({ onSuccess }: MaintenanceReportFormProps)
   });
 
   const onSubmit = (data: ReportForm) => {
-    if (!currentUser) return;
+    if (!user) return;
 
     setSubmitting(true);
     try {
@@ -59,7 +59,7 @@ export const MaintenanceReportForm = ({ onSuccess }: MaintenanceReportFormProps)
         id: Date.now().toString(),
         ...data,
         image: imageData,
-        reported_by: currentUser.full_name,
+        reported_by: user.full_name,
         status: 'open',
         created_at: new Date().toISOString()
       };

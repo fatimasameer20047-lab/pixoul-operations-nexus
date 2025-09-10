@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { BackButton } from '@/components/BackButton';
 import { ImageUpload } from '@/components/ImageUpload';
@@ -35,7 +35,7 @@ interface LostItem {
 }
 
 const LostFound = () => {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState<LostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -70,7 +70,7 @@ const LostFound = () => {
   };
 
   const onSubmit = (data: LostItemForm) => {
-    if (!currentUser) return;
+    if (!user) return;
 
     setSubmitting(true);
     try {
@@ -78,7 +78,7 @@ const LostFound = () => {
         id: Date.now().toString(),
         ...data,
         image: imageData,
-        reported_by: currentUser.full_name,
+        reported_by: user.full_name,
         status: 'lost',
         created_at: new Date().toISOString()
       };

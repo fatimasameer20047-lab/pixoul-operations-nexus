@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { NavigationHeader } from '@/components/NavigationHeader';
 import { BackButton } from '@/components/BackButton';
 import { WeeklyScheduleGrid } from '@/components/WeeklyScheduleGrid';
@@ -39,7 +39,7 @@ type SwapRequestForm = z.infer<typeof swapRequestSchema>;
 type CoverageForm = z.infer<typeof coverageSchema>;
 
 const StaffScheduling = () => {
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<ViewMode>('overview');
 
   const timeOffForm = useForm<TimeOffForm>({
@@ -60,9 +60,9 @@ const StaffScheduling = () => {
   const weeklySchedule = [
     { day: 'Monday', shift: '9:00 AM - 5:00 PM', staff: 'John Doe, Sarah Smith', status: 'Confirmed' },
     { day: 'Tuesday', shift: '10:00 AM - 6:00 PM', staff: 'Mike Johnson, Lisa Wang', status: 'Confirmed' },
-    { day: 'Wednesday', shift: '9:00 AM - 5:00 PM', staff: currentUser + ', Alex Chen', status: 'Confirmed' },
+    { day: 'Wednesday', shift: '9:00 AM - 5:00 PM', staff: user?.full_name + ', Alex Chen', status: 'Confirmed' },
     { day: 'Thursday', shift: '11:00 AM - 7:00 PM', staff: 'Emma Davis, Tom Wilson', status: 'Needs Coverage' },
-    { day: 'Friday', shift: '9:00 AM - 5:00 PM', staff: currentUser + ', Rachel Brown', status: 'Confirmed' },
+    { day: 'Friday', shift: '9:00 AM - 5:00 PM', staff: user?.full_name + ', Rachel Brown', status: 'Confirmed' },
     { day: 'Saturday', shift: '12:00 PM - 8:00 PM', staff: 'David Lee, Jessica Taylor', status: 'Confirmed' },
     { day: 'Sunday', shift: '12:00 PM - 6:00 PM', staff: 'Chris Anderson', status: 'Needs Coverage' }
   ];

@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/AuthProvider';
 import { FileUpload } from './FileUpload';
 import { Send, AlertTriangle, Paperclip } from 'lucide-react';
 
@@ -36,7 +36,7 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
   const { register, handleSubmit, reset, setValue, watch } = useForm();
   
   const messageText = watch('message');
@@ -67,10 +67,10 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
           const newMessage = payload.new as Message;
           
           // For direct messages, show if it's part of this conversation
-          if (isDirectMessage && currentUser && recipientId) {
+          if (isDirectMessage && user && recipientId) {
             const isPartOfConversation = 
-              (newMessage.sender_id === currentUser.id && newMessage.recipient_id === recipientId) ||
-              (newMessage.sender_id === recipientId && newMessage.recipient_id === currentUser.id);
+              (newMessage.sender_id === user.id && newMessage.recipient_id === recipientId) ||
+              (newMessage.sender_id === recipientId && newMessage.recipient_id === user.id);
             
             if (isPartOfConversation) {
               setMessages(prev => [...prev, newMessage]);
@@ -91,13 +91,13 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
 
   const fetchMessages = async () => {
     try {
-      if (isDirectMessage && currentUser && recipientId) {
+      if (isDirectMessage && user && recipientId) {
         // For direct messages, fetch messages where:
         // - current user sent to recipient OR recipient sent to current user
         const { data, error } = await supabase
           .from('chat_messages')
           .select('*')
-          .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${currentUser.id})`)
+          .or(`and(sender_id.eq.${user.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${user.id})`)
           .order('created_at', { ascending: true });
 
         if (error) throw error;
@@ -123,7 +123,7 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
   };
 
   const onSubmit = async (data: any) => {
-    if (!currentUser || (!data.message?.trim() && !fileUpload)) return;
+    if (!user || (!data.message?.trim() && !fileUpload)) return;
 
     setLoading(true);
     try {
@@ -150,8 +150,8 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
       }
 
       const messageData = {
-        sender_id: currentUser.id,
-        sender_name: currentUser.full_name,
+        sender_id: user.id,
+        sender_name: user.full_name,
         message: data.message || (fileUpload ? `Shared a file: ${fileUpload.name}` : ''),
         file_url: fileUrl,
         file_type: fileType,
