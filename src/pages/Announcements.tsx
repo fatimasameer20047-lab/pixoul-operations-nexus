@@ -5,8 +5,6 @@ import { AnnouncementForm } from '@/components/AnnouncementForm';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useRealtime } from '@/hooks/useRealtime';
 import { Plus } from 'lucide-react';
 
 interface Announcement {
@@ -18,55 +16,48 @@ interface Announcement {
   created_at: string;
 }
 
+// Mock announcements data
+const mockAnnouncements: Announcement[] = [
+  {
+    id: '1',
+    title: 'Welcome to Pixoul Staff Hub!',
+    message: 'This is a demo announcement. All staff members can view and post announcements here.',
+    author_name: 'System Admin',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    title: 'Maintenance Schedule',
+    message: 'Routine maintenance will be performed this weekend. Please report any issues beforehand.',
+    author_name: 'Fatima Samer',
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+  },
+  {
+    id: '3',
+    title: 'New Team Member',
+    message: 'Please welcome our new team member who will be joining the AI department next week.',
+    author_name: 'Hala Samer',
+    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+  },
+];
+
 const Announcements = () => {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>(mockAnnouncements);
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const { notifications } = useRealtime();
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchAnnouncements();
-    
-    // Set up real-time subscription for announcements
-    const channel = supabase
-      .channel('announcements-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'announcements'
-        },
-        (payload) => {
-          const newAnnouncement = payload.new as Announcement;
-          setAnnouncements(prev => [newAnnouncement, ...prev]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+  const addNewAnnouncement = (newAnnouncement: Omit<Announcement, 'id' | 'created_at'>) => {
+    const announcement: Announcement = {
+      ...newAnnouncement,
+      id: Date.now().toString(),
+      created_at: new Date().toISOString(),
     };
-  }, []);
-
-  const fetchAnnouncements = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setAnnouncements(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load announcements",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
+    setAnnouncements(prev => [announcement, ...prev]);
+    setShowForm(false);
+    toast({
+      title: "Success",
+      description: "Announcement posted successfully!",
+    });
   };
 
   const formatDate = (timestamp: string) => {
@@ -102,7 +93,7 @@ const Announcements = () => {
             {showForm && (
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">Post New Announcement</h2>
-                <AnnouncementForm />
+                <AnnouncementForm onSuccess={addNewAnnouncement} />
               </div>
             )}
             
@@ -148,12 +139,7 @@ const Announcements = () => {
               )}
               
               <div className="text-center pt-8">
-                <p className="text-accent">📢 Real-time notifications active!</p>
-                {notifications.length > 0 && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {notifications.length} new notification(s) received
-                  </p>
-                )}
+                <p className="text-accent">📢 Demo mode - Local announcements active!</p>
               </div>
             </div>
           </div>

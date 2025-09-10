@@ -8,7 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { FileUpload } from './FileUpload';
 
@@ -19,7 +18,11 @@ const announcementSchema = z.object({
 
 type AnnouncementForm = z.infer<typeof announcementSchema>;
 
-export const AnnouncementForm = () => {
+interface AnnouncementFormProps {
+  onSuccess?: (announcement: { title: string; message: string; author_name: string; image_url?: string }) => void;
+}
+
+export const AnnouncementForm = ({ onSuccess }: AnnouncementFormProps) => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const { user } = useAuth();
@@ -33,50 +36,24 @@ export const AnnouncementForm = () => {
     
     setLoading(true);
     try {
-      let imageUrl = null;
+      // In demo mode, just call the onSuccess callback
+      const announcement = {
+        title: data.title,
+        message: data.message,
+        author_name: user.full_name,
+        image_url: imageFile ? URL.createObjectURL(imageFile) : undefined
+      };
 
-      // Upload image if provided
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('announcements')
-          .upload(fileName, imageFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('announcements')
-          .getPublicUrl(fileName);
-
-        imageUrl = publicUrl;
+      if (onSuccess) {
+        onSuccess(announcement);
       }
-
-      // Insert announcement
-      const { error } = await supabase
-        .from('announcements')
-        .insert({
-          title: data.title,
-          message: data.message,
-          image_url: imageUrl,
-          author_id: user.id,
-          author_name: user.full_name
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Announcement posted successfully!"
-      });
 
       reset();
       setImageFile(null);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to post announcement",
         variant: "destructive"
       });
     } finally {

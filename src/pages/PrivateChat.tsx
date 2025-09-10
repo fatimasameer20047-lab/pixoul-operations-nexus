@@ -7,10 +7,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/auth/AuthProvider';
-import { useRealtime } from '@/hooks/useRealtime';
-import { usePrivateMessageNotifications } from '@/hooks/usePrivateMessageNotifications';
+import { LOCAL_USERS } from '@/auth/localUsers';
 import { MessageSquare, Users, Search, Hash, User } from 'lucide-react';
 
 interface Channel {
@@ -27,62 +25,37 @@ interface StaffMember {
   department: string;
 }
 
+// Mock data
+const mockChannels: Channel[] = [
+  { id: '1', name: 'general', description: 'General team discussions', department: 'All' },
+  { id: '2', name: 'ai-team', description: 'AI department discussions', department: 'AI' },
+  { id: '3', name: 'announcements', description: 'Official announcements only', department: 'All' },
+  { id: '4', name: 'tech-support', description: 'Technical support and troubleshooting', department: 'All' },
+];
+
 const PrivateChat = () => {
-  const [channels, setChannels] = useState<Channel[]>([]);
+  const [channels, setChannels] = useState<Channel[]>(mockChannels);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [directMessageUser, setDirectMessageUser] = useState<StaffMember | null>(null);
   const [showDirectMessage, setShowDirectMessage] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [staffSearchTerm, setStaffSearchTerm] = useState('');
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
-  const { notifications } = useRealtime();
-  const { notifications: privateNotifications, unreadCount, markAsRead, clearNotifications } = usePrivateMessageNotifications();
 
   useEffect(() => {
-    fetchChannels();
-    fetchStaffMembers();
-  }, []);
-
-  const fetchChannels = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('chat_channels')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setChannels(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load chat channels",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStaffMembers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('staff_accounts')
-        .select('*')
-        .neq('id', user?.id) // Exclude current user
-        .order('full_name');
-
-      if (error) throw error;
-      setStaffMembers(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load staff members",
-        variant: "destructive"
-      });
-    }
-  };
+    // Convert LOCAL_USERS to StaffMember format and exclude current user
+    const mockStaff: StaffMember[] = LOCAL_USERS
+      .filter(u => u.username !== user?.username)
+      .map((u, index) => ({
+        id: (index + 1).toString(),
+        username: u.username,
+        full_name: u.full_name,
+        department: u.department || 'AI',
+      }));
+    setStaffMembers(mockStaff);
+  }, [user]);
 
   const startDirectMessage = (staff: StaffMember) => {
     setDirectMessageUser(staff);
@@ -90,10 +63,11 @@ const PrivateChat = () => {
     setSelectedChannel(null);
     setStaffSearchTerm('');
     
-    // Mark notifications from this user as read
-    privateNotifications
-      .filter(n => n.sender_id === staff.id)
-      .forEach(n => markAsRead(n.id));
+    // In demo mode, just show a toast
+    toast({
+      title: "Demo Mode",
+      description: `Starting direct message with ${staff.full_name}`,
+    });
   };
 
   const filteredChannels = channels.filter(channel =>
@@ -107,7 +81,9 @@ const PrivateChat = () => {
     staff.department.toLowerCase().includes(staffSearchTerm.toLowerCase())
   );
 
-  const emergencyNotifications = notifications.filter(n => n.type === 'emergency');
+  // Mock notifications for demo
+  const mockUnreadCount = 0;
+  const mockPrivateNotifications: any[] = [];
 
   if (selectedChannel || showDirectMessage) {
     return (
@@ -155,16 +131,9 @@ const PrivateChat = () => {
             <div className="flex justify-between items-center mb-6">
               <h1 className="font-bold text-3xl">Private Chat</h1>
               <div className="flex items-center gap-2">
-                {unreadCount > 0 && (
-                  <Badge variant="default" className="animate-pulse">
-                    💬 {unreadCount} New Message(s)
-                  </Badge>
-                )}
-                {emergencyNotifications.length > 0 && (
-                  <Badge variant="destructive" className="animate-pulse">
-                    🚨 {emergencyNotifications.length} Emergency Alert(s)
-                  </Badge>
-                )}
+                <Badge variant="default">
+                  💬 Demo Mode
+                </Badge>
               </div>
             </div>
             
@@ -184,47 +153,19 @@ const PrivateChat = () => {
                 />
               </div>
 
-              {/* Unread Messages */}
-              {privateNotifications.length > 0 && (
+              {/* Demo message for unread messages */}
+              {mockPrivateNotifications.length > 0 && (
                 <Card className="p-6 border-primary">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-semibold text-lg flex items-center gap-2">
                       <MessageSquare className="w-5 h-5" />
-                      Unread Messages ({privateNotifications.length})
+                      Unread Messages ({mockPrivateNotifications.length})
                     </h3>
-                    <Button variant="outline" size="sm" onClick={clearNotifications}>
+                    <Button variant="outline" size="sm">
                       Mark All Read
                     </Button>
                   </div>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {privateNotifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className="p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors cursor-pointer"
-                        onClick={() => {
-                          const staff = staffMembers.find(s => s.id === notification.sender_id);
-                          if (staff) startDirectMessage(staff);
-                        }}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{notification.sender_name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {notification.message.length > 50 
-                                ? notification.message.substring(0, 50) + '...'
-                                : notification.message}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(notification.timestamp).toLocaleTimeString()}
-                            </p>
-                          </div>
-                          <Button size="sm" variant="outline">
-                            Reply
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-sm text-muted-foreground">No unread messages in demo mode</p>
                 </Card>
               )}
 
@@ -322,12 +263,7 @@ const PrivateChat = () => {
               </div>
               
               <div className="text-center pt-8">
-                <p className="text-accent">💬 Real-time encrypted messaging system active!</p>
-                {notifications.length > 0 && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {notifications.length} new notification(s) received
-                  </p>
-                )}
+                <p className="text-accent">💬 Demo mode - Local chat system active!</p>
               </div>
             </div>
           </div>

@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { Plus, Clock } from 'lucide-react';
 
@@ -24,10 +23,33 @@ interface ShiftForm {
   end_time: string;
 }
 
+function getMonday(date: Date): Date {
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(date.setDate(diff));
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+// Mock shifts data
+const generateMockShifts = (weekStart: Date): Shift[] => {
+  return [
+    { id: '1', user_name: 'Fatima Samer', day_of_week: 1, start_time: '09:00', end_time: '17:00', week_start_date: formatDate(weekStart) },
+    { id: '2', user_name: 'Hala Samer', day_of_week: 1, start_time: '13:00', end_time: '21:00', week_start_date: formatDate(weekStart) },
+    { id: '3', user_name: 'Aliya Haidar', day_of_week: 2, start_time: '10:00', end_time: '18:00', week_start_date: formatDate(weekStart) },
+    { id: '4', user_name: 'Fatima Samer', day_of_week: 3, start_time: '09:00', end_time: '17:00', week_start_date: formatDate(weekStart) },
+    { id: '5', user_name: 'Hala Samer', day_of_week: 4, start_time: '11:00', end_time: '19:00', week_start_date: formatDate(weekStart) },
+    { id: '6', user_name: 'Aliya Haidar', day_of_week: 5, start_time: '09:00', end_time: '17:00', week_start_date: formatDate(weekStart) },
+    { id: '7', user_name: 'Fatima Samer', day_of_week: 6, start_time: '12:00', end_time: '20:00', week_start_date: formatDate(weekStart) },
+  ];
+};
+
 export const WeeklyScheduleGrid = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const { user } = useAuth();
@@ -35,123 +57,49 @@ export const WeeklyScheduleGrid = () => {
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  function getMonday(date: Date): Date {
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(date.setDate(diff));
-  }
-
-  function formatDate(date: Date): string {
-    return date.toISOString().split('T')[0];
-  }
-
   useEffect(() => {
-    fetchShifts();
-    
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('shifts-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'weekly_shifts'
-        },
-        () => {
-          fetchShifts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Load mock shifts for the current week
+    setShifts(generateMockShifts(currentWeekStart));
   }, [currentWeekStart]);
 
-  const fetchShifts = async () => {
-    try {
-      const weekStartString = formatDate(currentWeekStart);
-      
-      const { data, error } = await supabase
-        .from('weekly_shifts')
-        .select('*')
-        .eq('week_start_date', weekStartString)
-        .order('day_of_week')
-        .order('start_time');
-
-      if (error) throw error;
-      setShifts(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load shifts",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSubmit = async (data: ShiftForm) => {
+  const onSubmit = (data: ShiftForm) => {
     if (!user) return;
 
-    try {
-      const weekStartString = formatDate(currentWeekStart);
-      
-      const { error } = await supabase
-        .from('weekly_shifts')
-        .upsert({
-          user_id: user.id,
-          user_name: user.full_name,
-          staff_account_id: user.id,
-          day_of_week: selectedDay,
-          start_time: data.start_time,
-          end_time: data.end_time,
-          week_start_date: weekStartString
-        }, {
-          onConflict: 'user_id, day_of_week, week_start_date'
-        });
+    const newShift: Shift = {
+      id: Date.now().toString(),
+      user_name: user.full_name,
+      day_of_week: selectedDay,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      week_start_date: formatDate(currentWeekStart)
+    };
 
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Shift added for ${days[selectedDay - 1]}`
-      });
-
-      reset();
-      setShowAddForm(false);
-      fetchShifts();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getShiftsForDay = (dayOfWeek: number) => {
-    return shifts.filter(shift => shift.day_of_week === dayOfWeek);
-  };
-
-  const formatTime = (time: string) => {
-    return new Date(`2000-01-01T${time}`).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    setShifts(prev => [...prev, newShift]);
+    
+    toast({
+      title: "Success",
+      description: "Shift added successfully (Demo mode)"
     });
+    
+    setShowAddForm(false);
+    reset();
+  };
+
+  const formatTime = (time: string): string => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const getShiftsForDay = (dayOfWeek: number): Shift[] => {
+    return shifts.filter(shift => shift.day_of_week === dayOfWeek);
   };
 
   const openAddShiftDialog = (dayOfWeek: number) => {
     setSelectedDay(dayOfWeek);
     setShowAddForm(true);
-  };
-
-  const getDateForDay = (dayOfWeek: number) => {
-    const date = new Date(currentWeekStart);
-    date.setDate(date.getDate() + dayOfWeek - 1);
-    return date;
   };
 
   const goToPreviousWeek = () => {
@@ -173,96 +121,72 @@ export const WeeklyScheduleGrid = () => {
   return (
     <div className="space-y-6">
       {/* Week Navigation */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Weekly Schedule Grid</h2>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={goToPreviousWeek}>
-            ← Previous Week
-          </Button>
-          <Button variant="outline" onClick={goToCurrentWeek}>
-            Current Week
-          </Button>
-          <Button variant="outline" onClick={goToNextWeek}>
-            Next Week →
+      <div className="flex items-center justify-between bg-muted rounded-lg p-4">
+        <Button variant="outline" onClick={goToPreviousWeek}>
+          ← Previous Week
+        </Button>
+        <div className="text-center">
+          <h2 className="font-semibold text-lg">
+            Week of {formatDate(currentWeekStart)}
+          </h2>
+          <Button variant="ghost" size="sm" onClick={goToCurrentWeek}>
+            Go to Current Week
           </Button>
         </div>
-      </div>
-
-      <div className="text-center text-sm text-muted-foreground">
-        Week of {currentWeekStart.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}
+        <Button variant="outline" onClick={goToNextWeek}>
+          Next Week →
+        </Button>
       </div>
 
       {/* Weekly Grid */}
-      {loading ? (
-        <div className="text-center py-8">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading schedule...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-7 gap-4">
-          {days.map((day, index) => {
-            const dayOfWeek = index + 1;
-            const dayShifts = getShiftsForDay(dayOfWeek);
-            const dayDate = getDateForDay(dayOfWeek);
-            const isToday = dayDate.toDateString() === new Date().toDateString();
-            
-            return (
-              <Card key={day} className={`p-4 min-h-[300px] ${isToday ? 'ring-2 ring-primary' : ''}`}>
-                <div className="space-y-3">
-                  <div className="text-center">
-                    <h3 className="font-semibold">{day}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {dayDate.getDate()}
-                    </p>
-                    {isToday && (
-                      <p className="text-xs text-primary font-medium">Today</p>
-                    )}
-                  </div>
-                  
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => openAddShiftDialog(dayOfWeek)}
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add Shift
-                  </Button>
-                  
-                  <div className="space-y-2">
-                    {dayShifts.length === 0 ? (
-                      <div className="text-center py-4">
-                        <Clock className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-xs text-muted-foreground">No shifts</p>
-                      </div>
-                    ) : (
-                      dayShifts.map((shift) => (
-                        <div key={shift.id} className="bg-muted rounded-lg p-2">
-                          <p className="font-medium text-sm">{shift.user_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      <div className="grid grid-cols-7 gap-4">
+        {days.map((day, index) => {
+          const dayOfWeek = index + 1;
+          const dayShifts = getShiftsForDay(dayOfWeek);
+          
+          return (
+            <Card key={day} className="p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-sm">{day}</h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => openAddShiftDialog(dayOfWeek)}
+                  className="h-6 w-6 p-0"
+                >
+                  <Plus className="w-3 h-3" />
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                {dayShifts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No shifts</p>
+                ) : (
+                  dayShifts.map((shift) => (
+                    <div key={shift.id} className="bg-primary/10 rounded p-2 text-xs">
+                      <p className="font-medium">{shift.user_name}</p>
+                      <p className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
 
       {/* Add Shift Dialog */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Shift for {days[selectedDay - 1]}</DialogTitle>
+            <DialogTitle>
+              Add Shift for {days[selectedDay - 1]}
+            </DialogTitle>
           </DialogHeader>
+          
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <Label htmlFor="start_time">Start Time</Label>
@@ -273,6 +197,7 @@ export const WeeklyScheduleGrid = () => {
                 className="mt-1"
               />
             </div>
+
             <div>
               <Label htmlFor="end_time">End Time</Label>
               <Input
@@ -282,15 +207,12 @@ export const WeeklyScheduleGrid = () => {
                 className="mt-1"
               />
             </div>
+
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1">
+              <Button type="submit" disabled={loading}>
                 Add Shift
               </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setShowAddForm(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
                 Cancel
               </Button>
             </div>
