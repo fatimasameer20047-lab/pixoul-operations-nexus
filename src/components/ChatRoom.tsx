@@ -5,23 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/auth/AuthProvider';
+import { chatService, type ChatMessage } from '@/services/chatService';
 import { FileUpload } from './FileUpload';
 import { Send, AlertTriangle, Paperclip } from 'lucide-react';
 
-interface Message {
-  id: string;
-  sender_id: string;
-  sender_name: string;
-  message: string;
-  file_url?: string;
-  file_type?: string;
-  is_emergency: boolean;
-  created_at: string;
-  recipient_id?: string;
-  channel_id?: string;
-}
+// Use ChatMessage from the service
 
 interface ChatRoomProps {
   channelId?: string;
@@ -31,7 +20,7 @@ interface ChatRoomProps {
 }
 
 export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage = false }: ChatRoomProps) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [showFileUpload, setShowFileUpload] = useState(false);
@@ -53,65 +42,22 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
   useEffect(() => {
     fetchMessages();
     
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('chat-messages-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages'
-        },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          
-          // For direct messages, show if it's part of this conversation
-          if (isDirectMessage && user && recipientId) {
-            const isPartOfConversation = 
-              (newMessage.sender_id === user.id && newMessage.recipient_id === recipientId) ||
-              (newMessage.sender_id === recipientId && newMessage.recipient_id === user.id);
-            
-            if (isPartOfConversation) {
-              setMessages(prev => [...prev, newMessage]);
-            }
-          } 
-          // For channel messages
-          else if (!isDirectMessage && newMessage.channel_id === channelId) {
-            setMessages(prev => [...prev, newMessage]);
-          }
-        }
-      )
-      .subscribe();
+    // Set up real-time listener for new messages
+    const unsubscribe = chatService.addListener(() => {
+      fetchMessages(); // Reload messages when new ones arrive
+    });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return unsubscribe;
   }, [channelId, recipientId, isDirectMessage]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = () => {
     try {
       if (isDirectMessage && user && recipientId) {
-        // For direct messages, fetch messages where:
-        // - current user sent to recipient OR recipient sent to current user
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .or(`and(sender_id.eq.${user.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${user.id})`)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        setMessages(data || []);
+        const msgs = chatService.getDirectMessages(user.id, recipientId);
+        setMessages(msgs);
       } else if (!isDirectMessage && channelId) {
-        // For channel messages
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('channel_id', channelId)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        setMessages(data || []);
+        const msgs = chatService.getChannelMessages(channelId);
+        setMessages(msgs);
       }
     } catch (error: any) {
       toast({
@@ -130,22 +76,9 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
       let fileUrl = null;
       let fileType = null;
 
-      // Upload file if provided
+      // Handle file upload locally
       if (fileUpload) {
-        const fileExt = fileUpload.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('chat-files')
-          .upload(fileName, fileUpload);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('chat-files')
-          .getPublicUrl(fileName);
-
-        fileUrl = publicUrl;
+        fileUrl = await chatService.storeFile(fileUpload);
         fileType = fileUpload.type;
       }
 
@@ -159,11 +92,7 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
         ...(isDirectMessage ? { recipient_id: recipientId } : { channel_id: channelId })
       };
 
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert(messageData);
-
-      if (error) throw error;
+      chatService.sendMessage(messageData);
 
       reset();
       setFileUpload(null);
@@ -212,15 +141,14 @@ export const ChatRoom = ({ channelId, recipientId, channelName, isDirectMessage 
                 <div className="mt-2">
                   {message.file_type?.startsWith('image/') ? (
                     <img 
-                      src={message.file_url} 
+                      src={chatService.getFileUrl(message.file_url) || message.file_url} 
                       alt="Shared image" 
                       className="max-w-full h-auto rounded border"
                     />
                   ) : (
                     <a 
-                      href={message.file_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
+                      href={chatService.getFileUrl(message.file_url) || message.file_url} 
+                      download
                       className="text-primary underline text-sm"
                     >
                       📎 Download File

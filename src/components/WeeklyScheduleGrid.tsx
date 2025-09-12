@@ -7,16 +7,9 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/auth/AuthProvider';
+import { shiftService, type Shift } from '@/services/shiftService';
+import { format } from 'date-fns';
 import { Plus, Clock } from 'lucide-react';
-
-interface Shift {
-  id: string;
-  user_name: string;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  week_start_date: string;
-}
 
 interface ShiftForm {
   start_time: string;
@@ -29,22 +22,15 @@ function getMonday(date: Date): Date {
   return new Date(date.setDate(diff));
 }
 
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+function getWeekDates(weekStart: Date): string[] {
+  const dates: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(weekStart);
+    date.setDate(date.getDate() + i);
+    dates.push(format(date, 'yyyy-MM-dd'));
+  }
+  return dates;
 }
-
-// Mock shifts data
-const generateMockShifts = (weekStart: Date): Shift[] => {
-  return [
-    { id: '1', user_name: 'Fatima Samer', day_of_week: 1, start_time: '09:00', end_time: '17:00', week_start_date: formatDate(weekStart) },
-    { id: '2', user_name: 'Hala Samer', day_of_week: 1, start_time: '13:00', end_time: '21:00', week_start_date: formatDate(weekStart) },
-    { id: '3', user_name: 'Aliya Haidar', day_of_week: 2, start_time: '10:00', end_time: '18:00', week_start_date: formatDate(weekStart) },
-    { id: '4', user_name: 'Fatima Samer', day_of_week: 3, start_time: '09:00', end_time: '17:00', week_start_date: formatDate(weekStart) },
-    { id: '5', user_name: 'Hala Samer', day_of_week: 4, start_time: '11:00', end_time: '19:00', week_start_date: formatDate(weekStart) },
-    { id: '6', user_name: 'Aliya Haidar', day_of_week: 5, start_time: '09:00', end_time: '17:00', week_start_date: formatDate(weekStart) },
-    { id: '7', user_name: 'Fatima Samer', day_of_week: 6, start_time: '12:00', end_time: '20:00', week_start_date: formatDate(weekStart) },
-  ];
-};
 
 export const WeeklyScheduleGrid = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -58,31 +44,42 @@ export const WeeklyScheduleGrid = () => {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   useEffect(() => {
-    // Load mock shifts for the current week
-    setShifts(generateMockShifts(currentWeekStart));
+    // Load shifts for the current week from local storage
+    const weekShifts = shiftService.getShiftsForWeek(currentWeekStart);
+    setShifts(weekShifts);
   }, [currentWeekStart]);
 
   const onSubmit = (data: ShiftForm) => {
     if (!user) return;
 
-    const newShift: Shift = {
-      id: Date.now().toString(),
-      user_name: user.full_name,
-      day_of_week: selectedDay,
-      start_time: data.start_time,
-      end_time: data.end_time,
-      week_start_date: formatDate(currentWeekStart)
-    };
+    try {
+      const weekDates = getWeekDates(currentWeekStart);
+      const targetDate = weekDates[selectedDay - 1];
 
-    setShifts(prev => [...prev, newShift]);
-    
-    toast({
-      title: "Success",
-      description: "Shift added successfully (Demo mode)"
-    });
-    
-    setShowAddForm(false);
-    reset();
+      const newShift = shiftService.addShift({
+        user_name: user.full_name,
+        date: targetDate,
+        start_time: data.start_time,
+        end_time: data.end_time
+      });
+
+      // Refresh shifts display
+      setShifts(prev => [...prev, newShift]);
+      
+      toast({
+        title: "Success",
+        description: "Shift added successfully"
+      });
+      
+      setShowAddForm(false);
+      reset();
+    } catch (error: any) {
+      toast({
+        title: "Error", 
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const formatTime = (time: string): string => {
@@ -94,7 +91,9 @@ export const WeeklyScheduleGrid = () => {
   };
 
   const getShiftsForDay = (dayOfWeek: number): Shift[] => {
-    return shifts.filter(shift => shift.day_of_week === dayOfWeek);
+    const weekDates = getWeekDates(currentWeekStart);
+    const targetDate = weekDates[dayOfWeek - 1];
+    return shifts.filter(shift => shift.date === targetDate);
   };
 
   const openAddShiftDialog = (dayOfWeek: number) => {
@@ -127,7 +126,7 @@ export const WeeklyScheduleGrid = () => {
         </Button>
         <div className="text-center">
           <h2 className="font-semibold text-lg">
-            Week of {formatDate(currentWeekStart)}
+            Week of {format(currentWeekStart, 'MMM dd, yyyy')}
           </h2>
           <Button variant="ghost" size="sm" onClick={goToCurrentWeek}>
             Go to Current Week
@@ -143,11 +142,16 @@ export const WeeklyScheduleGrid = () => {
         {days.map((day, index) => {
           const dayOfWeek = index + 1;
           const dayShifts = getShiftsForDay(dayOfWeek);
+          const weekDates = getWeekDates(currentWeekStart);
+          const dayDate = new Date(weekDates[index] + 'T00:00:00');
           
           return (
             <Card key={day} className="p-4">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold text-sm">{day}</h3>
+                <div>
+                  <h3 className="font-semibold text-sm">{day}</h3>
+                  <p className="text-xs text-muted-foreground">{format(dayDate, 'MMM dd')}</p>
+                </div>
                 <Button
                   size="sm"
                   variant="ghost"
